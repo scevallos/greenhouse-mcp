@@ -457,3 +457,74 @@ class GreenhouseClient:
         if auto_paginate:
             return await self._paginate("close_reasons", params=params)
         return await self._make_request("GET", "close_reasons", params=params)
+
+    async def list_job_stages(
+        self,
+        per_page: int = 50,
+        page: int = 1,
+        active: Optional[bool] = None,
+        auto_paginate: bool = False,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {"per_page": per_page, "page": page}
+        if active is not None:
+            params["active"] = "true" if active else "false"
+        if auto_paginate:
+            return await self._paginate("job_stages", params=params)
+        return await self._make_request("GET", "job_stages", params=params)
+
+    async def list_job_stages_for_job(
+        self,
+        job_id: int,
+        per_page: int = 50,
+        page: int = 1,
+        auto_paginate: bool = False,
+    ) -> List[Dict[str, Any]]:
+        params = {"per_page": per_page, "page": page}
+        endpoint = f"jobs/{job_id}/stages"
+        if auto_paginate:
+            return await self._paginate(endpoint, params=params)
+        return await self._make_request("GET", endpoint, params=params)
+
+    async def get_job_stage(self, stage_id: int) -> Dict[str, Any]:
+        return await self._make_request("GET", f"job_stages/{stage_id}")
+
+    async def get_job_hiring_team(self, job_id: int) -> Dict[str, Any]:
+        return await self._make_request("GET", f"jobs/{job_id}/hiring_team")
+
+    async def add_hiring_team_members(
+        self,
+        job_id: int,
+        members: Dict[str, List[Dict[str, Any]]],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "POST",
+            f"jobs/{job_id}/hiring_team",
+            json_data=members,
+            on_behalf_of=on_behalf_of,
+        )
+
+    async def replace_hiring_team(
+        self,
+        job_id: int,
+        members: Dict[str, List[Dict[str, Any]]],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "PUT",
+            f"jobs/{job_id}/hiring_team",
+            json_data=members,
+            on_behalf_of=on_behalf_of,
+        )
+
+    async def remove_hiring_team_member(
+        self,
+        job_id: int,
+        user_id: int,
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "DELETE",
+            f"jobs/{job_id}/hiring_team/{user_id}",
+            on_behalf_of=on_behalf_of,
+        )
