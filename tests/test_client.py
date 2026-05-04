@@ -164,6 +164,90 @@ async def test_delete_job_opening_targets_v2_endpoint():
     assert route.called
 
 
+@respx.mock
+async def test_list_job_posts_passes_filters_as_query_params():
+    client = GreenhouseClient(api_key="k")
+    route = respx.get(f"{BASE_URL}/job_posts").mock(
+        return_value=httpx.Response(200, json=[])
+    )
+    await client.list_job_posts(
+        per_page=10,
+        page=3,
+        active=True,
+        live=False,
+        internal=True,
+        full_content=True,
+        skip_count=True,
+        created_after="2026-01-01",
+        updated_before="2026-05-01",
+    )
+    params = route.calls.last.request.url.params
+    assert params["per_page"] == "10"
+    assert params["page"] == "3"
+    assert params["active"] == "true"
+    assert params["live"] == "false"
+    assert params["internal"] == "true"
+    assert params["full_content"] == "true"
+    assert params["skip_count"] == "true"
+    assert params["created_after"] == "2026-01-01"
+    assert params["updated_before"] == "2026-05-01"
+
+
+@respx.mock
+async def test_get_job_post_passes_full_content():
+    client = GreenhouseClient(api_key="k")
+    route = respx.get(f"{BASE_URL}/job_posts/42").mock(
+        return_value=httpx.Response(200, json={"id": 42})
+    )
+    await client.get_job_post(42, full_content=True)
+    assert route.calls.last.request.url.params["full_content"] == "true"
+
+
+@respx.mock
+async def test_get_job_post_omits_params_when_none():
+    client = GreenhouseClient(api_key="k")
+    route = respx.get(f"{BASE_URL}/job_posts/42").mock(
+        return_value=httpx.Response(200, json={"id": 42})
+    )
+    await client.get_job_post(42)
+    assert route.calls.last.request.url.query == b""
+
+
+@respx.mock
+async def test_list_job_post_custom_locations():
+    client = GreenhouseClient(api_key="k")
+    route = respx.get(f"{BASE_URL}/job_posts/42/custom_locations").mock(
+        return_value=httpx.Response(200, json=[{"id": 1, "value": "Boston"}])
+    )
+    result = await client.list_job_post_custom_locations(42)
+    assert route.called
+    assert result == [{"id": 1, "value": "Boston"}]
+
+
+@respx.mock
+async def test_update_job_post_targets_v2_endpoint():
+    client = GreenhouseClient(api_key="k", on_behalf_of="42")
+    route = respx.patch("https://harvest.greenhouse.io/v2/job_posts/9").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    await client.update_job_post(9, {"title": "New Title"})
+    request = route.calls.last.request
+    assert request.headers["On-Behalf-Of"] == "42"
+    assert b'"title"' in request.content
+
+
+@respx.mock
+async def test_update_job_post_status_targets_v2_endpoint():
+    client = GreenhouseClient(api_key="k", on_behalf_of="42")
+    route = respx.patch("https://harvest.greenhouse.io/v2/job_posts/9/status").mock(
+        return_value=httpx.Response(200, json={"success": True})
+    )
+    await client.update_job_post_status(9, "live")
+    request = route.calls.last.request
+    assert request.headers["On-Behalf-Of"] == "42"
+    assert b'"status":"live"' in request.content.replace(b" ", b"")
+
+
 async def test_rate_limiter_sleeps_when_window_full(monkeypatch):
     client = GreenhouseClient(api_key="k")
     client._rate_limit_max = 2
