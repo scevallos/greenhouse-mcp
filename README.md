@@ -59,10 +59,7 @@ The Greenhouse MCP server provides tools for:
 - Python 3.9+
 - Greenhouse API key (obtain from your Greenhouse admin panel)
 
-### Install via pip
-```bash
-pip install greenhouse-mcp
-```
+> **Note:** This package is not yet published to PyPI. Install from source.
 
 ### Install from source
 ```bash
@@ -97,14 +94,23 @@ python -m src.greenhouse_mcp
 
 ### Using with Claude Desktop
 
+Since the package is not published to PyPI, point Claude Desktop at your local clone. Replace `/absolute/path/to/greenhouse-mcp` with the directory you cloned the repo into.
+
 Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "greenhouse": {
-      "command": "uvx",
-      "args": ["greenhouse-mcp"],
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/absolute/path/to/greenhouse-mcp",
+        "run",
+        "python",
+        "-m",
+        "src.greenhouse_mcp"
+      ],
       "env": {
         "GREENHOUSE_API_KEY": "your_api_key_here",
         "GREENHOUSE_USER_ID": "your_greenhouse_user_id"
@@ -114,7 +120,27 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
+If you'd rather use the installed console script, run `pip install -e .` (or `uv pip install -e .`) inside the clone first, then use:
+
+```json
+{
+  "mcpServers": {
+    "greenhouse": {
+      "command": "/absolute/path/to/your/venv/bin/greenhouse-mcp",
+      "env": {
+        "GREENHOUSE_API_KEY": "your_api_key_here",
+        "GREENHOUSE_USER_ID": "your_greenhouse_user_id"
+      }
+    }
+  }
+}
+```
+
+Once the package is published to PyPI, the simpler `uvx greenhouse-mcp` form will work.
+
 ### Using with MCPD
+
+> **Note:** The MCPD flow below assumes `greenhouse-mcp` resolves through MCPD's registry, which depends on the package being published. Until then, use the Claude Desktop instructions above.
 
 1. Install MCPD:
 ```bash
