@@ -39,18 +39,20 @@ async def list_jobs(
     status: Optional[str] = None,
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
+    auto_paginate: bool = False,
     ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List all jobs in Greenhouse.
-    
+
     Args:
         per_page: Number of results per page (max 500)
         page: Page number to retrieve
         status: Filter by job status (open, closed, draft)
         created_after: ISO 8601 date to filter jobs created after
         created_before: ISO 8601 date to filter jobs created before
-    
+        auto_paginate: If true, follow Link headers to fetch all pages
+
     Returns:
         List of job objects
     """
@@ -61,7 +63,8 @@ async def list_jobs(
             page=page,
             status=status,
             created_after=created_after,
-            created_before=created_before
+            created_before=created_before,
+            auto_paginate=auto_paginate,
         )
         if ctx:
             ctx.info(f"Retrieved {len(jobs)} jobs")
@@ -79,10 +82,10 @@ async def get_job(
 ) -> Dict[str, Any]:
     """
     Get detailed information about a specific job.
-    
+
     Args:
         job_id: The ID of the job to retrieve
-    
+
     Returns:
         Job object with full details
     """
@@ -106,11 +109,12 @@ async def list_candidates(
     candidate_ids: Optional[List[int]] = None,
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
+    auto_paginate: bool = False,
     ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List candidates in Greenhouse.
-    
+
     Args:
         per_page: Number of results per page (max 500)
         page: Page number to retrieve
@@ -118,7 +122,8 @@ async def list_candidates(
         candidate_ids: List of specific candidate IDs to retrieve
         created_after: ISO 8601 date to filter candidates created after
         created_before: ISO 8601 date to filter candidates created before
-    
+        auto_paginate: If true, follow Link headers to fetch all pages
+
     Returns:
         List of candidate objects
     """
@@ -130,7 +135,8 @@ async def list_candidates(
             email=email,
             candidate_ids=candidate_ids,
             created_after=created_after,
-            created_before=created_before
+            created_before=created_before,
+            auto_paginate=auto_paginate,
         )
         if ctx:
             ctx.info(f"Retrieved {len(candidates)} candidates")
@@ -148,10 +154,10 @@ async def get_candidate(
 ) -> Dict[str, Any]:
     """
     Get detailed information about a specific candidate.
-    
+
     Args:
         candidate_id: The ID of the candidate to retrieve
-    
+
     Returns:
         Candidate object with full details
     """
@@ -177,11 +183,12 @@ async def create_candidate(
     company: Optional[str] = None,
     title: Optional[str] = None,
     tags: Optional[List[str]] = None,
+    on_behalf_of: Optional[str] = None,
     ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Create a new candidate in Greenhouse.
-    
+
     Args:
         first_name: Candidate's first name
         last_name: Candidate's last name
@@ -190,42 +197,46 @@ async def create_candidate(
         company: Current company
         title: Current job title
         tags: List of tags to apply to the candidate
-    
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
     Returns:
         Created candidate object
     """
     try:
         gh_client = get_client()
-        
-        candidate_data = {
+
+        candidate_data: Dict[str, Any] = {
             "first_name": first_name,
             "last_name": last_name,
         }
-        
+
         if email:
             candidate_data["email_addresses"] = [
                 {"value": email, "type": "personal"}
             ]
-        
+
         if phone:
             candidate_data["phone_numbers"] = [
                 {"value": phone, "type": "mobile"}
             ]
-        
+
         if company:
             candidate_data["company"] = company
-        
+
         if title:
             candidate_data["title"] = title
-        
+
         if tags:
             candidate_data["tags"] = tags
-        
-        candidate = await gh_client.create_candidate(candidate_data)
-        
+
+        candidate = await gh_client.create_candidate(
+            candidate_data, on_behalf_of=on_behalf_of
+        )
+
         if ctx:
             ctx.info(f"Created candidate: {first_name} {last_name}")
-        
+
         return candidate
     except Exception as e:
         if ctx:
@@ -243,11 +254,12 @@ async def update_candidate(
     company: Optional[str] = None,
     title: Optional[str] = None,
     tags: Optional[List[str]] = None,
+    on_behalf_of: Optional[str] = None,
     ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Update an existing candidate in Greenhouse.
-    
+
     Args:
         candidate_id: ID of the candidate to update
         first_name: Updated first name
@@ -257,45 +269,49 @@ async def update_candidate(
         company: Updated company
         title: Updated job title
         tags: Updated list of tags
-    
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
     Returns:
         Updated candidate object
     """
     try:
         gh_client = get_client()
-        
-        update_data = {}
-        
+
+        update_data: Dict[str, Any] = {}
+
         if first_name:
             update_data["first_name"] = first_name
-        
+
         if last_name:
             update_data["last_name"] = last_name
-        
+
         if email:
             update_data["email_addresses"] = [
                 {"value": email, "type": "personal"}
             ]
-        
+
         if phone:
             update_data["phone_numbers"] = [
                 {"value": phone, "type": "mobile"}
             ]
-        
+
         if company:
             update_data["company"] = company
-        
+
         if title:
             update_data["title"] = title
-        
+
         if tags:
             update_data["tags"] = tags
-        
-        candidate = await gh_client.update_candidate(candidate_id, update_data)
-        
+
+        candidate = await gh_client.update_candidate(
+            candidate_id, update_data, on_behalf_of=on_behalf_of
+        )
+
         if ctx:
             ctx.info(f"Updated candidate ID: {candidate_id}")
-        
+
         return candidate
     except Exception as e:
         if ctx:
@@ -312,11 +328,12 @@ async def list_applications(
     status: Optional[str] = None,
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
+    auto_paginate: bool = False,
     ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List applications in Greenhouse.
-    
+
     Args:
         per_page: Number of results per page (max 500)
         page: Page number to retrieve
@@ -325,7 +342,8 @@ async def list_applications(
         status: Filter by application status
         created_after: ISO 8601 date to filter applications created after
         created_before: ISO 8601 date to filter applications created before
-    
+        auto_paginate: If true, follow Link headers to fetch all pages
+
     Returns:
         List of application objects
     """
@@ -338,7 +356,8 @@ async def list_applications(
             candidate_id=candidate_id,
             status=status,
             created_after=created_after,
-            created_before=created_before
+            created_before=created_before,
+            auto_paginate=auto_paginate,
         )
         if ctx:
             ctx.info(f"Retrieved {len(applications)} applications")
@@ -356,10 +375,10 @@ async def get_application(
 ) -> Dict[str, Any]:
     """
     Get detailed information about a specific application.
-    
+
     Args:
         application_id: The ID of the application to retrieve
-    
+
     Returns:
         Application object with full details
     """
@@ -380,16 +399,19 @@ async def advance_application(
     application_id: int,
     from_stage_id: int,
     to_stage_id: Optional[int] = None,
+    on_behalf_of: Optional[str] = None,
     ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Advance an application to the next stage in the hiring process.
-    
+
     Args:
         application_id: ID of the application to advance
         from_stage_id: Current stage ID (must match the application's current stage)
         to_stage_id: Target stage ID (if not provided, advances to next stage)
-    
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
     Returns:
         Success confirmation
     """
@@ -398,7 +420,8 @@ async def advance_application(
         result = await gh_client.advance_application(
             application_id=application_id,
             from_stage_id=from_stage_id,
-            to_stage_id=to_stage_id
+            to_stage_id=to_stage_id,
+            on_behalf_of=on_behalf_of,
         )
         if ctx:
             ctx.info(f"Advanced application {application_id}")
@@ -414,16 +437,19 @@ async def reject_application(
     application_id: int,
     rejection_reason_id: Optional[int] = None,
     notes: Optional[str] = None,
+    on_behalf_of: Optional[str] = None,
     ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Reject an application.
-    
+
     Args:
         application_id: ID of the application to reject
         rejection_reason_id: ID of the rejection reason (optional)
         notes: Additional notes about the rejection (optional)
-    
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
     Returns:
         Success confirmation
     """
@@ -432,7 +458,8 @@ async def reject_application(
         result = await gh_client.reject_application(
             application_id=application_id,
             rejection_reason_id=rejection_reason_id,
-            notes=notes
+            notes=notes,
+            on_behalf_of=on_behalf_of,
         )
         if ctx:
             ctx.info(f"Rejected application {application_id}")
@@ -448,16 +475,19 @@ async def add_note_to_candidate(
     candidate_id: int,
     note: str,
     visibility: str = "private",
+    on_behalf_of: Optional[str] = None,
     ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Add a note to a candidate's activity feed.
-    
+
     Args:
         candidate_id: ID of the candidate
         note: The note content
         visibility: Note visibility (admin_only, private, or public)
-    
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
     Returns:
         Created note object
     """
@@ -466,7 +496,8 @@ async def add_note_to_candidate(
         result = await gh_client.add_note_to_candidate(
             candidate_id=candidate_id,
             body=note,
-            visibility=visibility
+            visibility=visibility,
+            on_behalf_of=on_behalf_of,
         )
         if ctx:
             ctx.info(f"Added note to candidate {candidate_id}")
@@ -482,16 +513,19 @@ async def add_note_to_application(
     application_id: int,
     note: str,
     visibility: str = "private",
+    on_behalf_of: Optional[str] = None,
     ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Add a note to an application.
-    
+
     Args:
         application_id: ID of the application
         note: The note content
         visibility: Note visibility (admin_only, private, or public)
-    
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
     Returns:
         Created note object
     """
@@ -500,7 +534,8 @@ async def add_note_to_application(
         result = await gh_client.add_note_to_application(
             application_id=application_id,
             body=note,
-            visibility=visibility
+            visibility=visibility,
+            on_behalf_of=on_behalf_of,
         )
         if ctx:
             ctx.info(f"Added note to application {application_id}")
@@ -515,15 +550,17 @@ async def add_note_to_application(
 async def list_departments(
     per_page: int = 50,
     page: int = 1,
+    auto_paginate: bool = False,
     ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List all departments in Greenhouse.
-    
+
     Args:
         per_page: Number of results per page
         page: Page number to retrieve
-    
+        auto_paginate: If true, follow Link headers to fetch all pages
+
     Returns:
         List of department objects
     """
@@ -531,7 +568,8 @@ async def list_departments(
         gh_client = get_client()
         departments = await gh_client.list_departments(
             per_page=per_page,
-            page=page
+            page=page,
+            auto_paginate=auto_paginate,
         )
         if ctx:
             ctx.info(f"Retrieved {len(departments)} departments")
@@ -546,15 +584,17 @@ async def list_departments(
 async def list_offices(
     per_page: int = 50,
     page: int = 1,
+    auto_paginate: bool = False,
     ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List all offices in Greenhouse.
-    
+
     Args:
         per_page: Number of results per page
         page: Page number to retrieve
-    
+        auto_paginate: If true, follow Link headers to fetch all pages
+
     Returns:
         List of office objects
     """
@@ -562,7 +602,8 @@ async def list_offices(
         gh_client = get_client()
         offices = await gh_client.list_offices(
             per_page=per_page,
-            page=page
+            page=page,
+            auto_paginate=auto_paginate,
         )
         if ctx:
             ctx.info(f"Retrieved {len(offices)} offices")
@@ -578,16 +619,18 @@ async def list_users(
     per_page: int = 50,
     page: int = 1,
     email: Optional[str] = None,
+    auto_paginate: bool = False,
     ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List users in Greenhouse.
-    
+
     Args:
         per_page: Number of results per page
         page: Page number to retrieve
         email: Filter by user email address
-    
+        auto_paginate: If true, follow Link headers to fetch all pages
+
     Returns:
         List of user objects
     """
@@ -596,7 +639,8 @@ async def list_users(
         users = await gh_client.list_users(
             per_page=per_page,
             page=page,
-            email=email
+            email=email,
+            auto_paginate=auto_paginate,
         )
         if ctx:
             ctx.info(f"Retrieved {len(users)} users")
@@ -610,12 +654,12 @@ async def list_users(
 def main():
     """Main entry point for the MCP server."""
     import sys
-    
+
     if not os.getenv("GREENHOUSE_API_KEY"):
         print("Error: GREENHOUSE_API_KEY environment variable is required", file=sys.stderr)
         print("Please set it in your .env file or environment.", file=sys.stderr)
         sys.exit(1)
-    
+
     mcp.run()
 
 

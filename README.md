@@ -53,8 +53,11 @@ Create a `.env` file in your project root:
 
 ```env
 GREENHOUSE_API_KEY=your_api_key_here
+GREENHOUSE_USER_ID=your_greenhouse_user_id  # Required for write operations (POST/PATCH/PUT/DELETE)
 GREENHOUSE_BASE_URL=https://harvest.greenhouse.io/v1  # Optional, this is the default
 ```
+
+**Note:** `GREENHOUSE_USER_ID` is required for write operations (creating candidates, advancing/rejecting applications, adding notes, etc.). It is sent as the `On-Behalf-Of` header so the action is attributed to a real Greenhouse user. Find your user ID in Greenhouse under Configure > Users — the ID appears in the URL when you select a user. Each write tool also accepts an `on_behalf_of` parameter that overrides the env default for that single call.
 
 ## Usage
 
@@ -79,7 +82,8 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
       "command": "uvx",
       "args": ["greenhouse-mcp"],
       "env": {
-        "GREENHOUSE_API_KEY": "your_api_key_here"
+        "GREENHOUSE_API_KEY": "your_api_key_here",
+        "GREENHOUSE_USER_ID": "your_greenhouse_user_id"
       }
     }
   }
@@ -100,7 +104,7 @@ mcpd add greenhouse-mcp
 
 3. Configure environment variables:
 ```bash
-mcpd config args set greenhouse-mcp --env GREENHOUSE_API_KEY=your_api_key_here
+mcpd config args set greenhouse-mcp --env GREENHOUSE_API_KEY=your_api_key_here --env GREENHOUSE_USER_ID=your_greenhouse_user_id
 ```
 
 4. Start the MCPD daemon:
