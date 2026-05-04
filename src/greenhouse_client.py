@@ -192,6 +192,50 @@ class GreenhouseClient:
     async def get_job(self, job_id: int) -> Dict[str, Any]:
         return await self._make_request("GET", f"jobs/{job_id}")
 
+    async def create_job(
+        self,
+        data: Dict[str, Any],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "POST", "jobs", json_data=data, on_behalf_of=on_behalf_of
+        )
+
+    async def update_job(
+        self,
+        job_id: int,
+        data: Dict[str, Any],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "PATCH",
+            f"jobs/{job_id}",
+            json_data=data,
+            on_behalf_of=on_behalf_of,
+        )
+
+    async def list_job_posts_for_job(
+        self,
+        job_id: int,
+        per_page: int = 50,
+        page: int = 1,
+        active: Optional[bool] = None,
+        live: Optional[bool] = None,
+        full_content: Optional[bool] = None,
+        auto_paginate: bool = False,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {"per_page": per_page, "page": page}
+        if active is not None:
+            params["active"] = "true" if active else "false"
+        if live is not None:
+            params["live"] = "true" if live else "false"
+        if full_content is not None:
+            params["full_content"] = "true" if full_content else "false"
+        endpoint = f"jobs/{job_id}/job_posts"
+        if auto_paginate:
+            return await self._paginate(endpoint, params=params)
+        return await self._make_request("GET", endpoint, params=params)
+
     async def list_candidates(
         self,
         per_page: int = 50,

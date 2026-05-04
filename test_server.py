@@ -25,46 +25,65 @@ def test_tools():
     try:
         import asyncio
         from src.greenhouse_mcp import mcp
-        
-        async def check_tools():
-            tools = await mcp.get_tools()
-            return tools
-        
-        # Run async function
-        tools = asyncio.run(check_tools())
-        
+
+        tools = asyncio.run(mcp.list_tools())
+
         print(f"✅ Found {len(tools)} tools registered:")
-        
+
         expected_tools = [
+            # Jobs
             "list_jobs",
             "get_job",
+            "create_job",
+            "update_job",
+            "list_job_posts_for_job",
+            # Candidates
             "list_candidates",
             "get_candidate",
             "create_candidate",
             "update_candidate",
+            "add_note_to_candidate",
+            # Applications
             "list_applications",
             "get_application",
             "advance_application",
             "reject_application",
-            "add_note_to_candidate",
             "add_note_to_application",
+            # Job openings + close reasons
+            "list_job_openings",
+            "get_job_opening",
+            "create_job_openings",
+            "update_job_opening",
+            "close_job_opening",
+            "reopen_job_opening",
+            "delete_job_opening",
+            "list_close_reasons",
+            # Job stages
+            "list_job_stages",
+            "list_job_stages_for_job",
+            "get_job_stage",
+            # Hiring team
+            "get_job_hiring_team",
+            "add_hiring_team_members",
+            "replace_hiring_team",
+            "remove_hiring_team_member",
+            # Org data
             "list_departments",
             "list_offices",
-            "list_users"
+            "list_users",
         ]
-        
-        # Get tool names from the registered tools
+
         tool_names = [tool.name if hasattr(tool, 'name') else str(tool) for tool in tools]
-        
-        for name in tool_names:
+
+        for name in sorted(tool_names):
             print(f"   - {name}")
-        
+
         missing_tools = [t for t in expected_tools if t not in tool_names]
-        
+
         if missing_tools:
             print(f"⚠️  Missing expected tools: {missing_tools}")
             return False
-        
+
         return True
     except Exception as e:
         print(f"❌ Failed to list tools: {e}")

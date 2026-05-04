@@ -9,6 +9,9 @@ The Greenhouse MCP server provides tools for:
 ### Jobs Management
 - `list_jobs` - List all jobs with filtering options
 - `get_job` - Get detailed information about a specific job
+- `create_job` - Create a new job by cloning an existing template job
+- `update_job` - Update job metadata (name, notes, department, offices, custom fields)
+- `list_job_posts_for_job` - List the public-facing job posts attached to a job
 
 ### Candidate Management
 - `list_candidates` - Search and list candidates
