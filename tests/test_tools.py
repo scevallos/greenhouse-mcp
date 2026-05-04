@@ -92,11 +92,95 @@ async def test_reopen_job_opening_sets_status_open(fake_client):
     )
 
 
+async def test_list_job_posts_passes_filters_through(fake_client):
+    fake_client.list_job_posts.return_value = [{"id": 1}]
+
+    result = await gh_mcp.list_job_posts(
+        per_page=10,
+        page=2,
+        active=True,
+        internal=False,
+        full_content=True,
+        updated_after="2026-01-01",
+    )
+
+    assert result == [{"id": 1}]
+    fake_client.list_job_posts.assert_awaited_once_with(
+        per_page=10,
+        page=2,
+        active=True,
+        live=None,
+        internal=False,
+        full_content=True,
+        skip_count=None,
+        created_after=None,
+        created_before=None,
+        updated_after="2026-01-01",
+        updated_before=None,
+        auto_paginate=False,
+    )
+
+
+async def test_update_job_post_rejects_multiple_location_args(fake_client):
+    with pytest.raises(ValueError, match="at most one of location"):
+        await gh_mcp.update_job_post(
+            job_post_id=5, location="NYC", location_office_id=7
+        )
+    fake_client.update_job_post.assert_not_called()
+
+
+async def test_update_job_post_requires_at_least_one_field(fake_client):
+    with pytest.raises(ValueError, match="at least one of"):
+        await gh_mcp.update_job_post(job_post_id=5)
+    fake_client.update_job_post.assert_not_called()
+
+
+async def test_update_job_post_wraps_office_id_in_location_object(fake_client):
+    fake_client.update_job_post.return_value = {"success": True}
+    await gh_mcp.update_job_post(
+        job_post_id=5, title="New", location_office_id=42, on_behalf_of="100"
+    )
+    fake_client.update_job_post.assert_awaited_once_with(
+        5,
+        {"title": "New", "location": {"office_id": 42}},
+        on_behalf_of="100",
+    )
+
+
+async def test_update_job_post_passes_plain_string_location(fake_client):
+    fake_client.update_job_post.return_value = {"success": True}
+    await gh_mcp.update_job_post(job_post_id=5, location="Remote")
+    fake_client.update_job_post.assert_awaited_once_with(
+        5, {"location": "Remote"}, on_behalf_of=None
+    )
+
+
+async def test_update_job_post_status_validates_value(fake_client):
+    with pytest.raises(ValueError, match="must be 'live' or 'offline'"):
+        await gh_mcp.update_job_post_status(job_post_id=5, status="archived")
+    fake_client.update_job_post_status.assert_not_called()
+
+
+async def test_update_job_post_status_forwards_args(fake_client):
+    fake_client.update_job_post_status.return_value = {"success": True}
+    await gh_mcp.update_job_post_status(
+        job_post_id=5, status="offline", on_behalf_of="100"
+    )
+    fake_client.update_job_post_status.assert_awaited_once_with(
+        5, "offline", on_behalf_of="100"
+    )
+
+
 EXPECTED_TOOLS = {
     "list_jobs",
     "get_job",
     "create_job",
     "update_job",
+    "list_job_posts",
+    "get_job_post",
+    "list_job_post_custom_locations",
+    "update_job_post",
+    "update_job_post_status",
     "list_job_posts_for_job",
     "list_candidates",
     "get_candidate",

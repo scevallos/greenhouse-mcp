@@ -279,6 +279,258 @@ async def list_job_posts_for_job(
 
 
 @mcp.tool
+async def list_job_posts(
+    per_page: int = 50,
+    page: int = 1,
+    active: Optional[bool] = None,
+    live: Optional[bool] = None,
+    internal: Optional[bool] = None,
+    full_content: Optional[bool] = None,
+    skip_count: Optional[bool] = None,
+    created_after: Optional[str] = None,
+    created_before: Optional[str] = None,
+    updated_after: Optional[str] = None,
+    updated_before: Optional[str] = None,
+    auto_paginate: bool = False,
+    ctx: Context = None,
+) -> List[Dict[str, Any]]:
+    """
+    List all job posts across the organization.
+
+    A job post is the public-facing description of a job — it has its own
+    title, location, content, and application questions, separate from the
+    underlying job. To list posts for a single job, use list_job_posts_for_job.
+
+    Args:
+        per_page: Results per page (max 500)
+        page: Page number
+        active: If true, only active posts; if false, only deleted posts
+        live: If true, only posts currently live on the job board
+        internal: If true, only internal posts; if false, only external posts
+        full_content: If true, include the board introduction, description,
+            pay transparency ranges, and board conclusion as one content field
+        skip_count: If true, skips the total-count query for faster responses
+        created_after: ISO 8601 timestamp to filter posts created at or after
+        created_before: ISO 8601 timestamp to filter posts created before
+        updated_after: ISO 8601 timestamp to filter posts updated at or after
+        updated_before: ISO 8601 timestamp to filter posts updated before
+        auto_paginate: If true, follow Link headers to fetch all pages
+
+    Returns:
+        List of job post objects
+    """
+    try:
+        gh_client = get_client()
+        posts = await gh_client.list_job_posts(
+            per_page=per_page,
+            page=page,
+            active=active,
+            live=live,
+            internal=internal,
+            full_content=full_content,
+            skip_count=skip_count,
+            created_after=created_after,
+            created_before=created_before,
+            updated_after=updated_after,
+            updated_before=updated_before,
+            auto_paginate=auto_paginate,
+        )
+        if ctx:
+            ctx.info(f"Retrieved {len(posts)} job posts")
+        return posts
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to list job posts: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def get_job_post(
+    job_post_id: int,
+    full_content: Optional[bool] = None,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """
+    Retrieve a single job post by ID.
+
+    Args:
+        job_post_id: ID of the job post to retrieve
+        full_content: If true, returns the board introduction, description,
+            pay transparency ranges, and board conclusion concatenated into the
+            content field
+
+    Returns:
+        Job post object
+    """
+    try:
+        gh_client = get_client()
+        post = await gh_client.get_job_post(job_post_id, full_content=full_content)
+        if ctx:
+            ctx.info(f"Retrieved job post: {post.get('title', job_post_id)}")
+        return post
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to get job post {job_post_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def list_job_post_custom_locations(
+    job_post_id: int, ctx: Context = None
+) -> List[Dict[str, Any]]:
+    """
+    List the custom location options available for a job post.
+
+    Use this to discover valid custom_location_id values when calling
+    update_job_post on a board configured with custom locations.
+
+    Args:
+        job_post_id: ID of the job post
+
+    Returns:
+        List of custom location objects (id, value, active, ...)
+    """
+    try:
+        gh_client = get_client()
+        locations = await gh_client.list_job_post_custom_locations(job_post_id)
+        if ctx:
+            ctx.info(
+                f"Retrieved {len(locations)} custom locations for job post "
+                f"{job_post_id}"
+            )
+        return locations
+    except Exception as e:
+        if ctx:
+            ctx.error(
+                f"Failed to list custom locations for job post {job_post_id}: "
+                f"{str(e)}"
+            )
+        raise
+
+
+@mcp.tool
+async def update_job_post(
+    job_post_id: int,
+    title: Optional[str] = None,
+    location: Optional[str] = None,
+    location_office_id: Optional[int] = None,
+    location_custom_location_id: Optional[int] = None,
+    content: Optional[str] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """
+    Update a job post's title, location, or body content.
+
+    Status changes are not handled here — use update_job_post_status for
+    "live" / "offline" toggles.
+
+    Exactly one of `location`, `location_office_id`, or
+    `location_custom_location_id` may be provided. Which one Greenhouse
+    accepts depends on the job board's location configuration:
+      - Free-text boards accept `location` (a plain string)
+      - Office-only boards accept `location_office_id`
+      - Custom-list boards accept `location_custom_location_id` (see
+        list_job_post_custom_locations to discover valid IDs)
+
+    Args:
+        job_post_id: ID of the job post to update
+        title: New title for the job post
+        location: New location as a plain text string
+        location_office_id: New location set by office ID
+        location_custom_location_id: New location set by custom location ID
+        content: New body of the job post (HTML, single line with escaped
+            quotes — replaces existing body wholesale)
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Greenhouse response (typically {"success": true})
+    """
+    location_inputs = [
+        location,
+        location_office_id,
+        location_custom_location_id,
+    ]
+    location_provided = sum(v is not None for v in location_inputs)
+    if location_provided > 1:
+        raise ValueError(
+            "update_job_post accepts at most one of location, "
+            "location_office_id, or location_custom_location_id"
+        )
+
+    data: Dict[str, Any] = {}
+    if title is not None:
+        data["title"] = title
+    if location is not None:
+        data["location"] = location
+    elif location_office_id is not None:
+        data["location"] = {"office_id": location_office_id}
+    elif location_custom_location_id is not None:
+        data["location"] = {"custom_location_id": location_custom_location_id}
+    if content is not None:
+        data["content"] = content
+
+    if not data:
+        raise ValueError(
+            "update_job_post requires at least one of title, location, "
+            "location_office_id, location_custom_location_id, or content"
+        )
+
+    try:
+        gh_client = get_client()
+        result = await gh_client.update_job_post(
+            job_post_id, data, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Updated job post {job_post_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to update job post {job_post_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def update_job_post_status(
+    job_post_id: int,
+    status: str,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """
+    Take a job post live or take it offline.
+
+    Greenhouse separates status updates from other job-post edits because
+    they're gated by a different permission. Use update_job_post for title,
+    location, and content changes.
+
+    Args:
+        job_post_id: ID of the job post
+        status: New status — "live" or "offline"
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Greenhouse response (typically {"success": true})
+    """
+    if status not in ("live", "offline"):
+        raise ValueError(f"status must be 'live' or 'offline', got {status!r}")
+    try:
+        gh_client = get_client()
+        result = await gh_client.update_job_post_status(
+            job_post_id, status, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Set job post {job_post_id} status to {status}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to update status for job post {job_post_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
 async def list_candidates(
     per_page: int = 50,
     page: int = 1,

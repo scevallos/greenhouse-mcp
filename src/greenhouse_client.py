@@ -239,6 +239,95 @@ class GreenhouseClient:
             return await self._paginate(endpoint, params=params)
         return await self._make_request("GET", endpoint, params=params)
 
+    async def list_job_posts(
+        self,
+        per_page: int = 50,
+        page: int = 1,
+        active: Optional[bool] = None,
+        live: Optional[bool] = None,
+        internal: Optional[bool] = None,
+        full_content: Optional[bool] = None,
+        skip_count: Optional[bool] = None,
+        created_before: Optional[str] = None,
+        created_after: Optional[str] = None,
+        updated_before: Optional[str] = None,
+        updated_after: Optional[str] = None,
+        auto_paginate: bool = False,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {"per_page": per_page, "page": page}
+        if active is not None:
+            params["active"] = "true" if active else "false"
+        if live is not None:
+            params["live"] = "true" if live else "false"
+        if internal is not None:
+            params["internal"] = "true" if internal else "false"
+        if full_content is not None:
+            params["full_content"] = "true" if full_content else "false"
+        if skip_count is not None:
+            params["skip_count"] = "true" if skip_count else "false"
+        if created_before:
+            params["created_before"] = created_before
+        if created_after:
+            params["created_after"] = created_after
+        if updated_before:
+            params["updated_before"] = updated_before
+        if updated_after:
+            params["updated_after"] = updated_after
+
+        if auto_paginate:
+            return await self._paginate("job_posts", params=params)
+        return await self._make_request("GET", "job_posts", params=params)
+
+    async def get_job_post(
+        self,
+        job_post_id: int,
+        full_content: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        params: Dict[str, Any] = {}
+        if full_content is not None:
+            params["full_content"] = "true" if full_content else "false"
+        return await self._make_request(
+            "GET", f"job_posts/{job_post_id}", params=params or None
+        )
+
+    async def list_job_post_custom_locations(
+        self,
+        job_post_id: int,
+    ) -> List[Dict[str, Any]]:
+        return await self._make_request(
+            "GET", f"job_posts/{job_post_id}/custom_locations"
+        )
+
+    async def update_job_post(
+        self,
+        job_post_id: int,
+        data: Dict[str, Any],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        absolute_url = f"{self._v2_base()}/job_posts/{job_post_id}"
+        return await self._make_request(
+            "PATCH",
+            "",
+            json_data=data,
+            on_behalf_of=on_behalf_of,
+            absolute_url=absolute_url,
+        )
+
+    async def update_job_post_status(
+        self,
+        job_post_id: int,
+        status: str,
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        absolute_url = f"{self._v2_base()}/job_posts/{job_post_id}/status"
+        return await self._make_request(
+            "PATCH",
+            "",
+            json_data={"status": status},
+            on_behalf_of=on_behalf_of,
+            absolute_url=absolute_url,
+        )
+
     async def list_candidates(
         self,
         per_page: int = 50,
@@ -483,14 +572,16 @@ class GreenhouseClient:
         opening_id: int,
         on_behalf_of: Optional[str] = None,
     ) -> Dict[str, Any]:
-        v2_base = self.base_url.rstrip("/").rsplit("/", 1)[0] + "/v2"
-        absolute_url = f"{v2_base}/job_openings/{opening_id}"
+        absolute_url = f"{self._v2_base()}/job_openings/{opening_id}"
         return await self._make_request(
             "DELETE",
             "",
             on_behalf_of=on_behalf_of,
             absolute_url=absolute_url,
         )
+
+    def _v2_base(self) -> str:
+        return self.base_url.rstrip("/").rsplit("/", 1)[0] + "/v2"
 
     async def list_close_reasons(
         self,
