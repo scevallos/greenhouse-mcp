@@ -1,5 +1,6 @@
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -53,8 +54,11 @@ class Application(BaseModel):
 
 class Note(BaseModel):
     body: str
-    visibility: str = Field(default="private", description="Options: 'admin_only', 'private', 'public'")
-    
+    visibility: str = Field(
+        default="private",
+        description="Options: 'admin_only', 'private', 'public'",
+    )
+
 
 class CandidateCreateRequest(BaseModel):
     first_name: str
@@ -66,8 +70,8 @@ class CandidateCreateRequest(BaseModel):
     addresses: Optional[List[Dict[str, Any]]] = None
     tags: Optional[List[str]] = None
     custom_fields: Optional[List[Dict[str, Any]]] = None
-    
-    
+
+
 class ApplicationAdvanceRequest(BaseModel):
     from_stage_id: int
     to_stage_id: Optional[int] = None

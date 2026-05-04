@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 import os
-import json
-from typing import Optional, List, Dict, Any
-from fastmcp import FastMCP, Context
+from typing import Any, Dict, List, Optional
+
 from dotenv import load_dotenv
+from fastmcp import Context, FastMCP
 
 from .greenhouse_client import GreenhouseClient
-from .models import (
-    Job, Candidate, Application, Note,
-    CandidateCreateRequest, ApplicationAdvanceRequest
-)
 
 load_dotenv()
 
@@ -40,7 +36,7 @@ async def list_jobs(
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List all jobs in Greenhouse.
@@ -76,10 +72,7 @@ async def list_jobs(
 
 
 @mcp.tool
-async def get_job(
-    job_id: int,
-    ctx: Context = None
-) -> Dict[str, Any]:
+async def get_job(job_id: int, ctx: Context = None) -> Dict[str, Any]:
     """
     Get detailed information about a specific job.
 
@@ -112,7 +105,7 @@ async def create_job(
     requisition_id: Optional[str] = None,
     opening_ids: Optional[List[str]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Create a new job by cloning an existing template job.
@@ -176,7 +169,7 @@ async def update_job(
     office_ids: Optional[List[int]] = None,
     custom_fields: Optional[Dict[str, Any]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Update an existing job's metadata — rename, move to a different
@@ -225,9 +218,7 @@ async def update_job(
             )
 
         gh_client = get_client()
-        job = await gh_client.update_job(
-            job_id, data, on_behalf_of=on_behalf_of
-        )
+        job = await gh_client.update_job(job_id, data, on_behalf_of=on_behalf_of)
         if ctx:
             ctx.info(f"Updated job {job_id}")
         return job
@@ -246,7 +237,7 @@ async def list_job_posts_for_job(
     live: Optional[bool] = None,
     full_content: Optional[bool] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List the public-facing job posts attached to a job.
@@ -296,7 +287,7 @@ async def list_candidates(
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List candidates in Greenhouse.
@@ -334,10 +325,7 @@ async def list_candidates(
 
 
 @mcp.tool
-async def get_candidate(
-    candidate_id: int,
-    ctx: Context = None
-) -> Dict[str, Any]:
+async def get_candidate(candidate_id: int, ctx: Context = None) -> Dict[str, Any]:
     """
     Get detailed information about a specific candidate.
 
@@ -370,7 +358,7 @@ async def create_candidate(
     title: Optional[str] = None,
     tags: Optional[List[str]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Create a new candidate in Greenhouse.
@@ -398,14 +386,10 @@ async def create_candidate(
         }
 
         if email:
-            candidate_data["email_addresses"] = [
-                {"value": email, "type": "personal"}
-            ]
+            candidate_data["email_addresses"] = [{"value": email, "type": "personal"}]
 
         if phone:
-            candidate_data["phone_numbers"] = [
-                {"value": phone, "type": "mobile"}
-            ]
+            candidate_data["phone_numbers"] = [{"value": phone, "type": "mobile"}]
 
         if company:
             candidate_data["company"] = company
@@ -441,7 +425,7 @@ async def update_candidate(
     title: Optional[str] = None,
     tags: Optional[List[str]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Update an existing candidate in Greenhouse.
@@ -473,14 +457,10 @@ async def update_candidate(
             update_data["last_name"] = last_name
 
         if email:
-            update_data["email_addresses"] = [
-                {"value": email, "type": "personal"}
-            ]
+            update_data["email_addresses"] = [{"value": email, "type": "personal"}]
 
         if phone:
-            update_data["phone_numbers"] = [
-                {"value": phone, "type": "mobile"}
-            ]
+            update_data["phone_numbers"] = [{"value": phone, "type": "mobile"}]
 
         if company:
             update_data["company"] = company
@@ -515,7 +495,7 @@ async def list_applications(
     created_after: Optional[str] = None,
     created_before: Optional[str] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List applications in Greenhouse.
@@ -555,10 +535,7 @@ async def list_applications(
 
 
 @mcp.tool
-async def get_application(
-    application_id: int,
-    ctx: Context = None
-) -> Dict[str, Any]:
+async def get_application(application_id: int, ctx: Context = None) -> Dict[str, Any]:
     """
     Get detailed information about a specific application.
 
@@ -586,7 +563,7 @@ async def advance_application(
     from_stage_id: int,
     to_stage_id: Optional[int] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Advance an application to the next stage in the hiring process.
@@ -624,7 +601,7 @@ async def reject_application(
     rejection_reason_id: Optional[int] = None,
     notes: Optional[str] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Reject an application.
@@ -662,7 +639,7 @@ async def add_note_to_candidate(
     note: str,
     visibility: str = "private",
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Add a note to a candidate's activity feed.
@@ -700,7 +677,7 @@ async def add_note_to_application(
     note: str,
     visibility: str = "private",
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Add a note to an application.
@@ -734,10 +711,7 @@ async def add_note_to_application(
 
 @mcp.tool
 async def list_departments(
-    per_page: int = 50,
-    page: int = 1,
-    auto_paginate: bool = False,
-    ctx: Context = None
+    per_page: int = 50, page: int = 1, auto_paginate: bool = False, ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List all departments in Greenhouse.
@@ -768,10 +742,7 @@ async def list_departments(
 
 @mcp.tool
 async def list_offices(
-    per_page: int = 50,
-    page: int = 1,
-    auto_paginate: bool = False,
-    ctx: Context = None
+    per_page: int = 50, page: int = 1, auto_paginate: bool = False, ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List all offices in Greenhouse.
@@ -806,7 +777,7 @@ async def list_users(
     page: int = 1,
     email: Optional[str] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List users in Greenhouse.
@@ -845,7 +816,7 @@ async def list_job_openings(
     opening_id: Optional[str] = None,
     skip_count: Optional[bool] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List job openings across the organization.
@@ -886,9 +857,7 @@ async def list_job_openings(
 
 @mcp.tool
 async def get_job_opening(
-    job_id: int,
-    opening_id: int,
-    ctx: Context = None
+    job_id: int, opening_id: int, ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Retrieve a single opening for a specific job.
@@ -919,7 +888,7 @@ async def create_job_openings(
     opening_ids: Optional[List[str]] = None,
     custom_fields: Optional[Dict[str, Any]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Create one or more job openings under a job.
@@ -968,7 +937,7 @@ async def update_job_opening(
     application_id: Optional[int] = None,
     custom_fields: Optional[Dict[str, Any]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Update a job opening — change status, close reason, linked application,
@@ -1025,7 +994,7 @@ async def close_job_opening(
     opening_id: int,
     close_reason_id: Optional[int] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Close a job opening. Convenience wrapper around update_job_opening.
@@ -1060,9 +1029,7 @@ async def close_job_opening(
 
 @mcp.tool
 async def reopen_job_opening(
-    opening_id: int,
-    on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    opening_id: int, on_behalf_of: Optional[str] = None, ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Reopen a previously closed job opening.
@@ -1094,7 +1061,7 @@ async def delete_job_opening(
     opening_id: int,
     confirm: bool = False,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Permanently delete a job opening. Destructive — this cannot be undone.
@@ -1134,10 +1101,7 @@ async def delete_job_opening(
 
 @mcp.tool
 async def list_close_reasons(
-    per_page: int = 50,
-    page: int = 1,
-    auto_paginate: bool = False,
-    ctx: Context = None
+    per_page: int = 50, page: int = 1, auto_paginate: bool = False, ctx: Context = None
 ) -> List[Dict[str, Any]]:
     """
     List close reasons configured in the organization.
@@ -1173,7 +1137,7 @@ async def list_job_stages(
     page: int = 1,
     active: Optional[bool] = None,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List all job stages defined in the organization.
@@ -1214,7 +1178,7 @@ async def list_job_stages_for_job(
     per_page: int = 50,
     page: int = 1,
     auto_paginate: bool = False,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> List[Dict[str, Any]]:
     """
     List the stages of a specific job's interview plan, in order.
@@ -1250,10 +1214,7 @@ async def list_job_stages_for_job(
 
 
 @mcp.tool
-async def get_job_stage(
-    stage_id: int,
-    ctx: Context = None
-) -> Dict[str, Any]:
+async def get_job_stage(stage_id: int, ctx: Context = None) -> Dict[str, Any]:
     """
     Retrieve a single job stage, including its interview kit if present.
 
@@ -1276,10 +1237,7 @@ async def get_job_stage(
 
 
 @mcp.tool
-async def get_job_hiring_team(
-    job_id: int,
-    ctx: Context = None
-) -> Dict[str, Any]:
+async def get_job_hiring_team(job_id: int, ctx: Context = None) -> Dict[str, Any]:
     """
     Retrieve the hiring team for a job — the recruiters, coordinators,
     hiring managers, and sourcers attached to it.
@@ -1329,7 +1287,7 @@ async def add_hiring_team_members(
     hiring_manager_ids: Optional[List[int]] = None,
     sourcer_ids: Optional[List[int]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Append members to a job's hiring team without removing existing ones.
@@ -1380,7 +1338,7 @@ async def replace_hiring_team(
     hiring_manager_ids: Optional[List[int]] = None,
     sourcer_ids: Optional[List[int]] = None,
     on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    ctx: Context = None,
 ) -> Dict[str, Any]:
     """
     Wholesale-replace a job's hiring team. Roles you supply are overwritten;
@@ -1419,10 +1377,7 @@ async def replace_hiring_team(
 
 @mcp.tool
 async def remove_hiring_team_member(
-    job_id: int,
-    user_id: int,
-    on_behalf_of: Optional[str] = None,
-    ctx: Context = None
+    job_id: int, user_id: int, on_behalf_of: Optional[str] = None, ctx: Context = None
 ) -> Dict[str, Any]:
     """
     Remove a single user from a job's hiring team.
@@ -1450,14 +1405,15 @@ async def remove_hiring_team_member(
         raise
 
 
-
-
 def main():
     """Main entry point for the MCP server."""
     import sys
 
     if not os.getenv("GREENHOUSE_API_KEY"):
-        print("Error: GREENHOUSE_API_KEY environment variable is required", file=sys.stderr)
+        print(
+            "Error: GREENHOUSE_API_KEY environment variable is required",
+            file=sys.stderr,
+        )
         print("Please set it in your .env file or environment.", file=sys.stderr)
         sys.exit(1)
 
