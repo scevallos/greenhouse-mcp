@@ -26,7 +26,7 @@ documentation = "https://github.com/yourusername/greenhouse-mcp#readme"
 license = "MIT"
 
 [server.requirements]
-python = ">=3.9"
+python = ">=3.10"
 dependencies = [
     "fastmcp>=2.0.0",
     "httpx>=0.24.0",

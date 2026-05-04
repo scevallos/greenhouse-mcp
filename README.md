@@ -56,7 +56,7 @@ The Greenhouse MCP server provides tools for:
 ## Installation
 
 ### Prerequisites
-- Python 3.9+
+- Python 3.10+
 - Greenhouse API key (obtain from your Greenhouse admin panel)
 
 ### Install via pip
