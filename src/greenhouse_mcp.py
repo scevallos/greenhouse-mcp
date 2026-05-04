@@ -102,6 +102,192 @@ async def get_job(
 
 
 @mcp.tool
+async def create_job(
+    template_job_id: int,
+    job_name: Optional[str] = None,
+    job_post_name: Optional[str] = None,
+    number_of_openings: Optional[int] = None,
+    department_id: Optional[int] = None,
+    office_ids: Optional[List[int]] = None,
+    requisition_id: Optional[str] = None,
+    opening_ids: Optional[List[str]] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Create a new job by cloning an existing template job.
+
+    Greenhouse requires a template_job_id — jobs are always created by copying
+    an existing job's interview plan, scorecard, and settings. To find a
+    template, look at list_jobs (any existing job can serve as a template).
+
+    Args:
+        template_job_id: ID of an existing job to clone settings from
+        job_name: Name for the new job (defaults to the template's name)
+        job_post_name: Name for the public-facing job post
+        number_of_openings: How many openings to create on the new job
+        department_id: Department to assign the new job to
+        office_ids: Office IDs to assign the new job to
+        requisition_id: Custom requisition ID string for the new job
+        opening_ids: Human-readable opening IDs (e.g. ["REQ-1234"]) — if
+            provided, length should match number_of_openings
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Created job object
+    """
+    try:
+        data: Dict[str, Any] = {"template_job_id": template_job_id}
+        if job_name is not None:
+            data["job_name"] = job_name
+        if job_post_name is not None:
+            data["job_post_name"] = job_post_name
+        if number_of_openings is not None:
+            data["number_of_openings"] = number_of_openings
+        if department_id is not None:
+            data["department_id"] = department_id
+        if office_ids is not None:
+            data["office_ids"] = office_ids
+        if requisition_id is not None:
+            data["requisition_id"] = requisition_id
+        if opening_ids is not None:
+            data["opening_ids"] = opening_ids
+
+        gh_client = get_client()
+        job = await gh_client.create_job(data, on_behalf_of=on_behalf_of)
+        if ctx:
+            ctx.info(f"Created job: {job.get('name', job_name or 'Unknown')}")
+        return job
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to create job: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def update_job(
+    job_id: int,
+    name: Optional[str] = None,
+    notes: Optional[str] = None,
+    requisition_id: Optional[str] = None,
+    team_id: Optional[int] = None,
+    department_id: Optional[int] = None,
+    office_ids: Optional[List[int]] = None,
+    custom_fields: Optional[Dict[str, Any]] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Update an existing job's metadata — rename, move to a different
+    department or office, change requisition ID, or update custom fields.
+
+    Note: this does not change job status. To close a job, close each of its
+    openings via close_job_opening (or update_job_opening).
+
+    Args:
+        job_id: ID of the job to update
+        name: New name for the job
+        notes: Updated job notes
+        requisition_id: Updated custom requisition ID
+        team_id: Team ID to assign the job to
+        department_id: Department ID to move the job to
+        office_ids: New full list of office IDs (replaces existing)
+        custom_fields: Custom field values to set
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Updated job object
+    """
+    try:
+        data: Dict[str, Any] = {}
+        if name is not None:
+            data["name"] = name
+        if notes is not None:
+            data["notes"] = notes
+        if requisition_id is not None:
+            data["requisition_id"] = requisition_id
+        if team_id is not None:
+            data["team_id"] = team_id
+        if department_id is not None:
+            data["department_id"] = department_id
+        if office_ids is not None:
+            data["office_ids"] = office_ids
+        if custom_fields is not None:
+            data["custom_fields"] = custom_fields
+
+        if not data:
+            raise ValueError(
+                "update_job requires at least one of name, notes, "
+                "requisition_id, team_id, department_id, office_ids, "
+                "or custom_fields"
+            )
+
+        gh_client = get_client()
+        job = await gh_client.update_job(
+            job_id, data, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Updated job {job_id}")
+        return job
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to update job {job_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def list_job_posts_for_job(
+    job_id: int,
+    per_page: int = 50,
+    page: int = 1,
+    active: Optional[bool] = None,
+    live: Optional[bool] = None,
+    full_content: Optional[bool] = None,
+    auto_paginate: bool = False,
+    ctx: Context = None
+) -> List[Dict[str, Any]]:
+    """
+    List the public-facing job posts attached to a job.
+
+    A job can have multiple posts (e.g. one per office, or different
+    audiences). Each post has its own title, location, content, and
+    application questions.
+
+    Args:
+        job_id: ID of the job
+        per_page: Results per page
+        page: Page number
+        active: If true, only return active posts
+        live: If true, only return posts currently live on the job board
+        full_content: If true, include the full post body and questions
+        auto_paginate: If true, follow Link headers to fetch all pages
+
+    Returns:
+        List of job post objects
+    """
+    try:
+        gh_client = get_client()
+        posts = await gh_client.list_job_posts_for_job(
+            job_id,
+            per_page=per_page,
+            page=page,
+            active=active,
+            live=live,
+            full_content=full_content,
+            auto_paginate=auto_paginate,
+        )
+        if ctx:
+            ctx.info(f"Retrieved {len(posts)} job posts for job {job_id}")
+        return posts
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to list job posts for job {job_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
 async def list_candidates(
     per_page: int = 50,
     page: int = 1,
