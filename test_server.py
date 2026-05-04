@@ -4,26 +4,30 @@ Simple test script to verify the Greenhouse MCP server is working.
 This tests that the server can be imported and initialized.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+
 def test_import():
     """Test that we can import the MCP server."""
     try:
-        from src.greenhouse_mcp import mcp
+        from src.greenhouse_mcp import mcp  # noqa: F401
+
         print("✅ Successfully imported MCP server")
         return True
     except ImportError as e:
         print(f"❌ Failed to import MCP server: {e}")
         return False
 
+
 def test_tools():
     """Test that tools are registered."""
     try:
         import asyncio
+
         from src.greenhouse_mcp import mcp
 
         tools = asyncio.run(mcp.list_tools())
@@ -73,7 +77,9 @@ def test_tools():
             "list_users",
         ]
 
-        tool_names = [tool.name if hasattr(tool, 'name') else str(tool) for tool in tools]
+        tool_names = [
+            tool.name if hasattr(tool, "name") else str(tool) for tool in tools
+        ]
 
         for name in sorted(tool_names):
             print(f"   - {name}")
@@ -89,10 +95,11 @@ def test_tools():
         print(f"❌ Failed to list tools: {e}")
         return False
 
+
 def test_env_check():
     """Test environment variable configuration."""
     api_key = os.getenv("GREENHOUSE_API_KEY")
-    
+
     if api_key:
         print(f"✅ GREENHOUSE_API_KEY is set (length: {len(api_key)} chars)")
         return True
@@ -101,26 +108,27 @@ def test_env_check():
         print("   Set it in .env file or environment to use the server")
         return None  # Warning, not failure
 
+
 def main():
     """Run all tests."""
     print("Testing Greenhouse MCP Server...\n")
-    
+
     results = []
-    
+
     # Test imports
     results.append(test_import())
-    
+
     # Test tools
     if results[-1]:  # Only test tools if import succeeded
         results.append(test_tools())
-    
+
     # Test environment
     env_result = test_env_check()
     if env_result is not None:
         results.append(env_result)
-    
-    print("\n" + "="*50)
-    
+
+    print("\n" + "=" * 50)
+
     if all(results):
         print("✅ All tests passed! Server is ready to use.")
         print("\nTo run the server:")
@@ -128,13 +136,14 @@ def main():
         print("\nOr with Python:")
         print("  python -m src.greenhouse_mcp")
         return 0
-    elif any(r == False for r in results):
+    elif any(r is False for r in results):
         print("❌ Some tests failed. Please check the errors above.")
         return 1
     else:
         print("⚠️  Server is functional but needs configuration.")
         print("Please set GREENHOUSE_API_KEY in your .env file.")
         return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

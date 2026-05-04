@@ -1,9 +1,10 @@
-import os
 import asyncio
 import base64
+import os
 import re
 import time
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any, Dict, List, Optional
+
 import httpx
 from dotenv import load_dotenv
 
@@ -25,7 +26,9 @@ class GreenhouseClient:
 
         self.on_behalf_of = on_behalf_of or os.getenv("GREENHOUSE_USER_ID")
 
-        self.base_url = os.getenv("GREENHOUSE_BASE_URL", "https://harvest.greenhouse.io/v1")
+        self.base_url = os.getenv(
+            "GREENHOUSE_BASE_URL", "https://harvest.greenhouse.io/v1"
+        )
 
         auth_string = base64.b64encode(f"{self.api_key}:".encode()).decode()
         self.headers = {
@@ -447,9 +450,7 @@ class GreenhouseClient:
         job_id: int,
         opening_id: int,
     ) -> Dict[str, Any]:
-        return await self._make_request(
-            "GET", f"jobs/{job_id}/openings/{opening_id}"
-        )
+        return await self._make_request("GET", f"jobs/{job_id}/openings/{opening_id}")
 
     async def create_job_openings(
         self,
