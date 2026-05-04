@@ -24,6 +24,16 @@ The Greenhouse MCP server provides tools for:
 - `reject_application` - Reject applications with reasons
 - `add_note_to_application` - Add notes to applications
 
+### Job Openings
+- `list_job_openings` - List job openings across the org with status filter
+- `get_job_opening` - Get a specific opening for a job
+- `create_job_openings` - Add new headcount (one or many) to a job
+- `update_job_opening` - Generic update (status, close reason, custom fields)
+- `close_job_opening` - Convenience wrapper to close an opening with a reason
+- `reopen_job_opening` - Reopen a previously closed opening
+- `delete_job_opening` - Permanently delete an opening (requires `confirm=True`)
+- `list_close_reasons` - List valid close reason IDs for closing openings
+
 ### Organization Data
 - `list_departments` - List all departments
 - `list_offices` - List all offices

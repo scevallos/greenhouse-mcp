@@ -377,3 +377,83 @@ class GreenhouseClient:
         if auto_paginate:
             return await self._paginate("users", params=params)
         return await self._make_request("GET", "users", params=params)
+
+    async def list_job_openings(
+        self,
+        per_page: int = 50,
+        page: int = 1,
+        status: Optional[str] = None,
+        opening_id: Optional[str] = None,
+        skip_count: Optional[bool] = None,
+        auto_paginate: bool = False,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {"per_page": per_page, "page": page}
+        if status:
+            params["status"] = status
+        if opening_id:
+            params["opening_id"] = opening_id
+        if skip_count is not None:
+            params["skip_count"] = "true" if skip_count else "false"
+        if auto_paginate:
+            return await self._paginate("job_openings", params=params)
+        return await self._make_request("GET", "job_openings", params=params)
+
+    async def get_job_opening(
+        self,
+        job_id: int,
+        opening_id: int,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "GET", f"jobs/{job_id}/openings/{opening_id}"
+        )
+
+    async def create_job_openings(
+        self,
+        job_id: int,
+        openings: List[Dict[str, Any]],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "POST",
+            f"jobs/{job_id}/openings",
+            json_data={"openings": openings},
+            on_behalf_of=on_behalf_of,
+        )
+
+    async def update_job_opening(
+        self,
+        opening_id: int,
+        data: Dict[str, Any],
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        return await self._make_request(
+            "PATCH",
+            f"job_openings/{opening_id}",
+            json_data=data,
+            on_behalf_of=on_behalf_of,
+        )
+
+    async def delete_job_opening(
+        self,
+        opening_id: int,
+        on_behalf_of: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        v2_base = self.base_url.rstrip("/").rsplit("/", 1)[0] + "/v2"
+        absolute_url = f"{v2_base}/job_openings/{opening_id}"
+        return await self._make_request(
+            "DELETE",
+            "",
+            on_behalf_of=on_behalf_of,
+            absolute_url=absolute_url,
+        )
+
+    async def list_close_reasons(
+        self,
+        per_page: int = 50,
+        page: int = 1,
+        auto_paginate: bool = False,
+    ) -> List[Dict[str, Any]]:
+        params = {"per_page": per_page, "page": page}
+        if auto_paginate:
+            return await self._paginate("close_reasons", params=params)
+        return await self._make_request("GET", "close_reasons", params=params)
