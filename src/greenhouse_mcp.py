@@ -651,6 +651,336 @@ async def list_users(
         raise
 
 
+@mcp.tool
+async def list_job_openings(
+    per_page: int = 50,
+    page: int = 1,
+    status: Optional[str] = None,
+    opening_id: Optional[str] = None,
+    skip_count: Optional[bool] = None,
+    auto_paginate: bool = False,
+    ctx: Context = None
+) -> List[Dict[str, Any]]:
+    """
+    List job openings across the organization.
+
+    A job opening is a discrete headcount slot under a job. One job can have
+    many openings, each with its own status (open, closed), close_reason,
+    and custom fields.
+
+    Args:
+        per_page: Results per page (max 500)
+        page: Page number
+        status: Filter by status (open, closed)
+        opening_id: Filter by the human-readable opening ID
+        skip_count: If true, skips the total-count query for faster responses
+        auto_paginate: If true, follow Link headers to fetch all pages
+
+    Returns:
+        List of job opening objects
+    """
+    try:
+        gh_client = get_client()
+        openings = await gh_client.list_job_openings(
+            per_page=per_page,
+            page=page,
+            status=status,
+            opening_id=opening_id,
+            skip_count=skip_count,
+            auto_paginate=auto_paginate,
+        )
+        if ctx:
+            ctx.info(f"Retrieved {len(openings)} job openings")
+        return openings
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to list job openings: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def get_job_opening(
+    job_id: int,
+    opening_id: int,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Retrieve a single opening for a specific job.
+
+    Args:
+        job_id: ID of the parent job
+        opening_id: Numeric ID of the opening
+
+    Returns:
+        Job opening object
+    """
+    try:
+        gh_client = get_client()
+        opening = await gh_client.get_job_opening(job_id, opening_id)
+        if ctx:
+            ctx.info(f"Retrieved opening {opening_id} for job {job_id}")
+        return opening
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to get opening {opening_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def create_job_openings(
+    job_id: int,
+    quantity: int = 1,
+    opening_ids: Optional[List[str]] = None,
+    custom_fields: Optional[Dict[str, Any]] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Create one or more job openings under a job.
+
+    Args:
+        job_id: ID of the job to add openings to
+        quantity: Number of openings to create (used when opening_ids is not given)
+        opening_ids: Optional list of human-readable opening IDs (e.g. ["REQ-1234"]).
+            If provided, length determines how many openings are created.
+        custom_fields: Custom field values to apply to every new opening
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Greenhouse response containing the created openings
+    """
+    try:
+        gh_client = get_client()
+
+        if opening_ids:
+            openings = [{"opening_id": oid} for oid in opening_ids]
+        else:
+            openings = [{} for _ in range(quantity)]
+
+        if custom_fields:
+            for opening in openings:
+                opening["custom_fields"] = custom_fields
+
+        result = await gh_client.create_job_openings(
+            job_id, openings, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Created {len(openings)} opening(s) on job {job_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to create openings on job {job_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def update_job_opening(
+    opening_id: int,
+    status: Optional[str] = None,
+    close_reason_id: Optional[int] = None,
+    application_id: Optional[int] = None,
+    custom_fields: Optional[Dict[str, Any]] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Update a job opening — change status, close reason, linked application,
+    or custom fields.
+
+    For the common cases of closing or reopening, prefer close_job_opening
+    and reopen_job_opening which set the right fields automatically.
+
+    Args:
+        opening_id: Numeric ID of the opening to update
+        status: New status ("open" or "closed")
+        close_reason_id: Close reason (required when closing for non-hire reasons;
+            see list_close_reasons for valid IDs)
+        application_id: Application ID to link the opening to (e.g. when hiring)
+        custom_fields: Custom field values to set
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Updated opening object
+    """
+    try:
+        data: Dict[str, Any] = {}
+        if status:
+            data["status"] = status
+        if close_reason_id is not None:
+            data["close_reason_id"] = close_reason_id
+        if application_id is not None:
+            data["application_id"] = application_id
+        if custom_fields:
+            data["custom_fields"] = custom_fields
+
+        if not data:
+            raise ValueError(
+                "update_job_opening requires at least one of status, "
+                "close_reason_id, application_id, or custom_fields"
+            )
+
+        gh_client = get_client()
+        result = await gh_client.update_job_opening(
+            opening_id, data, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Updated opening {opening_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to update opening {opening_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def close_job_opening(
+    opening_id: int,
+    close_reason_id: Optional[int] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Close a job opening. Convenience wrapper around update_job_opening.
+
+    Args:
+        opening_id: Numeric ID of the opening to close
+        close_reason_id: ID of the close reason (see list_close_reasons).
+            Required by Greenhouse for closures other than "hired".
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Updated opening object
+    """
+    try:
+        data: Dict[str, Any] = {"status": "closed"}
+        if close_reason_id is not None:
+            data["close_reason_id"] = close_reason_id
+
+        gh_client = get_client()
+        result = await gh_client.update_job_opening(
+            opening_id, data, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Closed opening {opening_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to close opening {opening_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def reopen_job_opening(
+    opening_id: int,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Reopen a previously closed job opening.
+
+    Args:
+        opening_id: Numeric ID of the opening to reopen
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Updated opening object
+    """
+    try:
+        gh_client = get_client()
+        result = await gh_client.update_job_opening(
+            opening_id, {"status": "open"}, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Reopened opening {opening_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to reopen opening {opening_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def delete_job_opening(
+    opening_id: int,
+    confirm: bool = False,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Permanently delete a job opening. Destructive — this cannot be undone.
+
+    For day-to-day workflows, prefer close_job_opening, which preserves the
+    opening's history. Only use this to remove openings that were created in
+    error.
+
+    Args:
+        opening_id: Numeric ID of the opening to delete
+        confirm: Must be set to True to actually perform the deletion.
+            Acts as a safety guard.
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Empty object on success
+    """
+    if not confirm:
+        raise ValueError(
+            "delete_job_opening is destructive and requires confirm=True. "
+            "Consider close_job_opening instead, which preserves history."
+        )
+    try:
+        gh_client = get_client()
+        result = await gh_client.delete_job_opening(
+            opening_id, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Deleted opening {opening_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to delete opening {opening_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def list_close_reasons(
+    per_page: int = 50,
+    page: int = 1,
+    auto_paginate: bool = False,
+    ctx: Context = None
+) -> List[Dict[str, Any]]:
+    """
+    List close reasons configured in the organization.
+
+    Use the returned IDs as close_reason_id when closing an opening or
+    rejecting an application.
+
+    Args:
+        per_page: Results per page
+        page: Page number
+        auto_paginate: If true, follow Link headers to fetch all pages
+
+    Returns:
+        List of close reason objects with id and name
+    """
+    try:
+        gh_client = get_client()
+        reasons = await gh_client.list_close_reasons(
+            per_page=per_page, page=page, auto_paginate=auto_paginate
+        )
+        if ctx:
+            ctx.info(f"Retrieved {len(reasons)} close reasons")
+        return reasons
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to list close reasons: {str(e)}")
+        raise
+
+
 def main():
     """Main entry point for the MCP server."""
     import sys
