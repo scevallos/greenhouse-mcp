@@ -34,6 +34,17 @@ The Greenhouse MCP server provides tools for:
 - `delete_job_opening` - Permanently delete an opening (requires `confirm=True`)
 - `list_close_reasons` - List valid close reason IDs for closing openings
 
+### Job Stages
+- `list_job_stages` - List all job stages in the org
+- `list_job_stages_for_job` - List the stages of a job's interview plan in order
+- `get_job_stage` - Retrieve a single job stage with its interview kit
+
+### Hiring Team
+- `get_job_hiring_team` - Get a job's recruiters, coordinators, hiring managers, sourcers
+- `add_hiring_team_members` - Append members to a job's hiring team
+- `replace_hiring_team` - Wholesale-replace a job's hiring team
+- `remove_hiring_team_member` - Remove a user from a job's hiring team
+
 ### Organization Data
 - `list_departments` - List all departments
 - `list_offices` - List all offices

@@ -981,6 +981,291 @@ async def list_close_reasons(
         raise
 
 
+@mcp.tool
+async def list_job_stages(
+    per_page: int = 50,
+    page: int = 1,
+    active: Optional[bool] = None,
+    auto_paginate: bool = False,
+    ctx: Context = None
+) -> List[Dict[str, Any]]:
+    """
+    List all job stages defined in the organization.
+
+    Job stages are the steps of an interview plan (e.g. "Phone Screen",
+    "Technical Interview", "Offer"). Use this when you need a stage ID for
+    advance_application, or to look up the structure of an interview plan.
+
+    Args:
+        per_page: Results per page
+        page: Page number
+        active: If true, only return active stages
+        auto_paginate: If true, follow Link headers to fetch all pages
+
+    Returns:
+        List of job stage objects (id, name, position, active, schedulable, ...)
+    """
+    try:
+        gh_client = get_client()
+        stages = await gh_client.list_job_stages(
+            per_page=per_page,
+            page=page,
+            active=active,
+            auto_paginate=auto_paginate,
+        )
+        if ctx:
+            ctx.info(f"Retrieved {len(stages)} job stages")
+        return stages
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to list job stages: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def list_job_stages_for_job(
+    job_id: int,
+    per_page: int = 50,
+    page: int = 1,
+    auto_paginate: bool = False,
+    ctx: Context = None
+) -> List[Dict[str, Any]]:
+    """
+    List the stages of a specific job's interview plan, in order.
+
+    This is the right tool to call before advance_application — the
+    application's current stage will be one of the items returned here,
+    and the next stage to advance to is the one with the next position.
+
+    Args:
+        job_id: ID of the job
+        per_page: Results per page
+        page: Page number
+        auto_paginate: If true, follow Link headers to fetch all pages
+
+    Returns:
+        List of job stage objects ordered by position
+    """
+    try:
+        gh_client = get_client()
+        stages = await gh_client.list_job_stages_for_job(
+            job_id,
+            per_page=per_page,
+            page=page,
+            auto_paginate=auto_paginate,
+        )
+        if ctx:
+            ctx.info(f"Retrieved {len(stages)} stages for job {job_id}")
+        return stages
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to list stages for job {job_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def get_job_stage(
+    stage_id: int,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Retrieve a single job stage, including its interview kit if present.
+
+    Args:
+        stage_id: Numeric ID of the job stage
+
+    Returns:
+        Job stage object
+    """
+    try:
+        gh_client = get_client()
+        stage = await gh_client.get_job_stage(stage_id)
+        if ctx:
+            ctx.info(f"Retrieved stage: {stage.get('name', stage_id)}")
+        return stage
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to get stage {stage_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def get_job_hiring_team(
+    job_id: int,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Retrieve the hiring team for a job — the recruiters, coordinators,
+    hiring managers, and sourcers attached to it.
+
+    Args:
+        job_id: ID of the job
+
+    Returns:
+        Object with role-keyed lists (recruiters, coordinators,
+        hiring_managers, sourcers), each containing user objects.
+    """
+    try:
+        gh_client = get_client()
+        team = await gh_client.get_job_hiring_team(job_id)
+        if ctx:
+            ctx.info(f"Retrieved hiring team for job {job_id}")
+        return team
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to get hiring team for job {job_id}: {str(e)}")
+        raise
+
+
+def _build_hiring_team_payload(
+    recruiter_ids: Optional[List[int]],
+    coordinator_ids: Optional[List[int]],
+    hiring_manager_ids: Optional[List[int]],
+    sourcer_ids: Optional[List[int]],
+) -> Dict[str, List[Dict[str, int]]]:
+    payload: Dict[str, List[Dict[str, int]]] = {}
+    if recruiter_ids is not None:
+        payload["recruiters"] = [{"id": uid} for uid in recruiter_ids]
+    if coordinator_ids is not None:
+        payload["coordinators"] = [{"id": uid} for uid in coordinator_ids]
+    if hiring_manager_ids is not None:
+        payload["hiring_managers"] = [{"id": uid} for uid in hiring_manager_ids]
+    if sourcer_ids is not None:
+        payload["sourcers"] = [{"id": uid} for uid in sourcer_ids]
+    return payload
+
+
+@mcp.tool
+async def add_hiring_team_members(
+    job_id: int,
+    recruiter_ids: Optional[List[int]] = None,
+    coordinator_ids: Optional[List[int]] = None,
+    hiring_manager_ids: Optional[List[int]] = None,
+    sourcer_ids: Optional[List[int]] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Append members to a job's hiring team without removing existing ones.
+
+    Provide user IDs grouped by role. Any role you don't supply is left
+    unchanged. Use replace_hiring_team if you want to wholesale overwrite
+    the team.
+
+    Args:
+        job_id: ID of the job
+        recruiter_ids: User IDs to add as recruiters
+        coordinator_ids: User IDs to add as coordinators
+        hiring_manager_ids: User IDs to add as hiring managers
+        sourcer_ids: User IDs to add as sourcers
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Updated hiring team object
+    """
+    payload = _build_hiring_team_payload(
+        recruiter_ids, coordinator_ids, hiring_manager_ids, sourcer_ids
+    )
+    if not payload:
+        raise ValueError(
+            "add_hiring_team_members requires at least one of recruiter_ids, "
+            "coordinator_ids, hiring_manager_ids, or sourcer_ids"
+        )
+    try:
+        gh_client = get_client()
+        result = await gh_client.add_hiring_team_members(
+            job_id, payload, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Added hiring team members to job {job_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to add hiring team members to job {job_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def replace_hiring_team(
+    job_id: int,
+    recruiter_ids: Optional[List[int]] = None,
+    coordinator_ids: Optional[List[int]] = None,
+    hiring_manager_ids: Optional[List[int]] = None,
+    sourcer_ids: Optional[List[int]] = None,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Wholesale-replace a job's hiring team. Roles you supply are overwritten;
+    roles you omit become empty lists. Get the current team first with
+    get_job_hiring_team if you want to preserve members in roles you're not
+    changing.
+
+    Args:
+        job_id: ID of the job
+        recruiter_ids: Full set of recruiter user IDs (replaces existing)
+        coordinator_ids: Full set of coordinator user IDs
+        hiring_manager_ids: Full set of hiring manager user IDs
+        sourcer_ids: Full set of sourcer user IDs
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Updated hiring team object
+    """
+    payload = _build_hiring_team_payload(
+        recruiter_ids, coordinator_ids, hiring_manager_ids, sourcer_ids
+    )
+    try:
+        gh_client = get_client()
+        result = await gh_client.replace_hiring_team(
+            job_id, payload, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Replaced hiring team for job {job_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to replace hiring team for job {job_id}: {str(e)}")
+        raise
+
+
+@mcp.tool
+async def remove_hiring_team_member(
+    job_id: int,
+    user_id: int,
+    on_behalf_of: Optional[str] = None,
+    ctx: Context = None
+) -> Dict[str, Any]:
+    """
+    Remove a single user from a job's hiring team.
+
+    Args:
+        job_id: ID of the job
+        user_id: ID of the Greenhouse user to remove
+        on_behalf_of: Greenhouse user ID to attribute the action to.
+            Falls back to GREENHOUSE_USER_ID env var.
+
+    Returns:
+        Empty object on success
+    """
+    try:
+        gh_client = get_client()
+        result = await gh_client.remove_hiring_team_member(
+            job_id, user_id, on_behalf_of=on_behalf_of
+        )
+        if ctx:
+            ctx.info(f"Removed user {user_id} from hiring team of job {job_id}")
+        return result
+    except Exception as e:
+        if ctx:
+            ctx.error(f"Failed to remove user {user_id} from job {job_id}: {str(e)}")
+        raise
+
+
+
+
 def main():
     """Main entry point for the MCP server."""
     import sys
